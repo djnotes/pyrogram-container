@@ -1,5 +1,4 @@
-name: GHCR CI
-
+name: Pyrogram Docker Hub CI
 # This workflow uses actions that are not certified by GitHub.
 # They are provided by a third-party and are governed by
 # separate terms of service, privacy policy, and support
@@ -8,7 +7,7 @@ name: GHCR CI
 on:
   # Commenting out because want image rebuild only on push
   schedule:
-    - cron: '40 21 * * *'
+    - cron: '0 3 * * 5' # Every Friday
   push:
     branches: [ main ]
     # Publish semver tags as releases.
@@ -18,12 +17,11 @@ on:
 
 env:
   # Use docker.io for Docker Hub if empty
-  REGISTRY: ghcr.io/${{ github.repository_owner }}
-  IMAGE_NAME: pyrogram-image
-  IMAGE_TAGS: v1 ${{ github.sha }}
-  IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
-  REGISTRY_USER: ${{ github.actor }}
-  REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}  
+  REGISTRY: docker.io
+  # github.repository as <account>/<repo>
+  IMAGE_NAME: powergame/pyrogram
+  CONTAINERFILE: Containerfile
+  DOCKER_USERNAME: powergame
   # IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
 
 
@@ -47,18 +45,23 @@ jobs:
         uses: redhat-actions/buildah-build@v2
         with:
           image: ${{ env.IMAGE_NAME }}
-          tags: ${{ env.IMAGE_TAGS }}
+          tags: latest ${{ github.sha }} ${{ github.ref_name }}
           containerfiles: |
-            ./Containerfile
+            ${{ env.CONTAINERFILE }}
+
+      - name: Echo Build Outputs
+        run: |
+          echo "${{ toJson(steps.build-image.outputs) }}"
+          
       - name: Push to registry
         id: push
         uses: redhat-actions/push-to-registry@v2
         with:
           image: ${{ steps.build-image.outputs.image }}
           tags: ${{ steps.build-image.outputs.tags }}
-          registry: ${{ env.IMAGE_REGISTRY }}
-          username: ${{ env.REGISTRY_USER }}
-          password: ${{ env.REGISTRY_PASSWORD }}
+          registry: ${{ env.REGISTRY }}
+          username: ${{ env.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_PASSWORD }}
           
 
       
